@@ -8,6 +8,12 @@ class Program : Game
 {
 	Example[] Examples =
 	[
+		new HelloTriangleExample(),
+		new HelloRectangleExample(),
+		new HelloShaderUniformExample(),
+		new HelloTexturedQuadsExample(),
+		new HelloTexturedCubeExample(),
+
 		new ClearScreenExample(),
 		new ClearScreen_MultiWindowExample(),
 		new BasicStencilExample(),

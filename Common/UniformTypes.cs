@@ -1,4 +1,6 @@
 ﻿using System.Numerics;
+using System.Runtime.InteropServices;
+using MoonWorks.Graphics;
 
 namespace MoonWorksGraphicsTests;
 
@@ -9,5 +11,16 @@ public struct TransformVertexUniform
 	public TransformVertexUniform(Matrix4x4 viewProjection)
 	{
 		ViewProjection = viewProjection;
+	}
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct ColorFragmentUniform
+{
+	public FColor Color;
+
+	public ColorFragmentUniform(FColor color)
+	{
+		Color = color;
 	}
 }
