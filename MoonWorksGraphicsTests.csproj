@@ -14,7 +14,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include=".\lib\MoonWorks\MoonWorks.csproj" />
+	  <ProjectReference Include="..\MoonWorks\MoonWorks.csproj" />
 	</ItemGroup>
 
 	<Import Project=".\CopyMoonlibs.targets" />
