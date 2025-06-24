@@ -4,6 +4,7 @@ using MoonWorks.Graphics;
 
 namespace MoonWorksGraphicsTests;
 
+[StructLayout(LayoutKind.Sequential)]
 public struct TransformVertexUniform
 {
 	public Matrix4x4 ViewProjection;

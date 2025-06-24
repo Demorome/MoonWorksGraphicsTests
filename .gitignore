@@ -3,3 +3,4 @@ obj/
 .vs/
 *.csproj.user
 Properties/
+Common/Content/Textures/jacoggers.png
