@@ -4,6 +4,7 @@ using MoonWorks.Graphics;
 using System.Numerics;
 using Buffer = MoonWorks.Graphics.Buffer;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
 
 namespace MoonWorksGraphicsTests;
 
@@ -25,23 +26,30 @@ class HelloTexturedCubeExample : Example
 
 	private int currentSamplerIndex;
 
-	private Texture[] textures = new Texture[2];
+	private Texture[] textures = new Texture[3];
+	private Texture DepthRT;
 
 	private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
 	
 	private float cubeTimer;
-	private Quaternion cubeRotation;
-	private Quaternion previousCubeRotation;
+	private Quaternion[] cubeRotations = new Quaternion[2];
+	private Quaternion[] previousCubeRotations = new Quaternion[2];
 	private Vector3 camPos;
+	private List<Vector3> cubePositions;
 
     public override unsafe void Init()
 	{
 		Window.SetTitle("TexturedCube");
 
 		cubeTimer = 0;
-		cubeRotation = Quaternion.Identity;
-		previousCubeRotation = Quaternion.Identity;
-		camPos = new Vector3(0, 1.5f, 4);
+		cubeRotations.AsSpan().Fill(Quaternion.Identity);
+		previousCubeRotations.AsSpan().Fill(Quaternion.Identity);
+		camPos = new Vector3(0f, 0f, 6f);
+
+		cubePositions = new List<Vector3>() {
+			new Vector3(0, 0, 0),
+			new Vector3(0, 0, 3) // currently unused
+		};
 
 		Logger.LogInfo("Press Left and Right to cycle between sampler states");
 		Logger.LogInfo("Setting sampler state to: " + samplerNames[0]);
@@ -160,6 +168,16 @@ class HelloTexturedCubeExample : Example
 			TextureFormat.R8G8B8A8Unorm, TextureUsageFlags.Sampler);
 		textures[1] = resourceUploader.CreateTexture2DFromCompressed(RootTitleStorage, TestUtils.GetTexturePath("container.png"),
 			TextureFormat.R8G8B8A8Unorm, TextureUsageFlags.Sampler);
+		textures[2] = resourceUploader.CreateTexture2DFromCompressed(RootTitleStorage, TestUtils.GetTexturePath("hein.png"),
+			TextureFormat.R8G8B8A8Unorm, TextureUsageFlags.Sampler);
+
+		DepthRT = Texture.Create2D(
+			GraphicsDevice,
+			Window.Width,
+			Window.Height,
+			GraphicsDevice.SupportedDepthFormat,
+			TextureUsageFlags.DepthStencilTarget
+		);
 
 		resourceUploader.Upload();
 		resourceUploader.Dispose();
@@ -192,10 +210,15 @@ class HelloTexturedCubeExample : Example
 			Logger.LogInfo("Setting sampler state to: " + samplerNames[currentSamplerIndex]);
 		}
 
-		// Rotate the cube
-		cubeTimer += (float) delta.TotalSeconds;
-		previousCubeRotation = cubeRotation;
-		cubeRotation = Quaternion.CreateFromYawPitchRoll(cubeTimer * 2f, 0, cubeTimer * 2f);
+		cubeTimer += (float)delta.TotalSeconds;
+
+		// Rotate the first cube
+		previousCubeRotations[0] = cubeRotations[0];
+		cubeRotations[0] = Quaternion.CreateFromYawPitchRoll(cubeTimer * 2f, 0, cubeTimer * 2f);
+		
+		// Rotate the 2nd cube
+		previousCubeRotations[1] = cubeRotations[1];
+		cubeRotations[1] = Quaternion.CreateFromYawPitchRoll(cubeTimer, 0, 0);
 	}
 
 	public override void Draw(double alpha)
@@ -205,6 +228,9 @@ class HelloTexturedCubeExample : Example
 		if (swapchainTexture != null)
 		{
 			// Set up cube model-view-projection matrix
+			
+			// NOTE: The perspective matrix will flip the handedness (Z-axis) when it converts to NDC (clip space), 
+			// ..so worldToView etc. being right-handed is correct.
 			Matrix4x4 viewToClipSpace = Matrix4x4.CreatePerspectiveFieldOfView(
 				float.DegreesToRadians(75f),
 				(float) Window.Width / Window.Height,
@@ -212,23 +238,25 @@ class HelloTexturedCubeExample : Example
 				100f
 			);
 
-			Matrix4x4 worldToView = Matrix4x4.CreateLookAt(camPos, Vector3.Zero, Vector3.UnitY);
+			Matrix4x4 worldToView = Matrix4x4.CreateLookAt(camPos, cubePositions[0], Vector3.UnitY);
 
-			Matrix4x4 modelToWorld = Matrix4x4.CreateFromQuaternion(
-				Quaternion.Slerp(
-					previousCubeRotation,
-					cubeRotation,
-					(float) alpha
-				)
-			);
-			TransformVertexUniform cubeUniforms = new TransformVertexUniform(modelToWorld * worldToView * viewToClipSpace);
+			/*
+			Span<Matrix4x4> models = new Matrix4x4[cubePositions.Count];
+			models.Fill(Matrix4x4.Identity);
+			*/
+
+			Matrix4x4 worldToClipSpace = worldToView * viewToClipSpace;
 
 			var renderPass = cmdbuf.BeginRenderPass(
+				new DepthStencilTargetInfo(DepthRT, 1, true),
 				new ColorTargetInfo(swapchainTexture, Color.Black)
 			);
-			renderPass.BindGraphicsPipeline(pipeline);
 
-			cmdbuf.PushVertexUniformData(cubeUniforms);
+			/*
+			var renderPass = cmdbuf.BeginRenderPass(
+				new ColorTargetInfo(swapchainTexture, Color.Black)
+			);*/
+			renderPass.BindGraphicsPipeline(pipeline);
 
 			Span<TextureSamplerBinding> samplerBindings = [
 				new TextureSamplerBinding(textures[0], samplers[currentSamplerIndex]),
@@ -238,7 +266,63 @@ class HelloTexturedCubeExample : Example
 
 			renderPass.BindVertexBuffers(vertexBuffer);
 			renderPass.BindIndexBuffer(indexBuffer, IndexElementSize.Sixteen);
-			renderPass.DrawIndexedPrimitives(36, 1, 0, 0, 0);
+
+			{
+				for (int i = 0; i < cubePositions.Count; ++i)
+				{
+					var cubePos = cubePositions[i];
+
+					Matrix4x4 modelToWorld = Matrix4x4.CreateTranslation(cubePos);
+
+					if (i == 0)
+					{
+						// Do "Scale * Rotation * Translation" (backwards order compared to OpenGL)
+						modelToWorld *= Matrix4x4.CreateFromQuaternion(
+							Quaternion.Slerp(
+								previousCubeRotations[i],
+								cubeRotations[i],
+								(float)alpha
+							)
+						);
+					}
+					else if (i == 1)
+					{
+						modelToWorld = Matrix4x4.CreateTranslation(cubePositions[0]); // our pivot
+						var scale = Matrix4x4.CreateScale(0.5f);
+						var rotate = Matrix4x4.CreateFromQuaternion(
+							Quaternion.Slerp(
+								previousCubeRotations[i],
+								cubeRotations[i],
+								(float)alpha
+							)
+						);
+
+						// Orbit the 2nd cube around the first!
+						var distance = 3f;
+						var angle = cubeTimer % (MathF.PI * 2);
+						var orbitMovement = Matrix4x4.CreateTranslation(
+							new Vector3(MathF.Sin(angle) * distance,
+								0,
+								MathF.Cos(angle) * distance
+							)
+						);
+
+						modelToWorld = modelToWorld * scale * rotate * orbitMovement;
+
+						samplerBindings = [
+							new TextureSamplerBinding(textures[2], samplers[currentSamplerIndex]),
+							new TextureSamplerBinding(textures[1], samplers[currentSamplerIndex])
+						];
+						renderPass.BindFragmentSamplers(samplerBindings);
+					}
+
+					TransformVertexUniform cubeUniforms = new TransformVertexUniform(modelToWorld * worldToClipSpace);
+					cmdbuf.PushVertexUniformData(cubeUniforms);
+
+					renderPass.DrawIndexedPrimitives(36, 1, 0, 0, 0);
+				}
+			}
+
 
 			cmdbuf.EndRenderPass(renderPass);
 		}
