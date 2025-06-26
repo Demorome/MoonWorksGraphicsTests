@@ -26,14 +26,14 @@ class HelloTexturedCubeExample : Example
 
 	private int currentSamplerIndex;
 
-	private Texture[] textures = new Texture[3];
+	private Texture[] textures = new Texture[4];
 	private Texture DepthRT;
 
 	private System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
 	
 	private float cubeTimer;
-	private Quaternion[] cubeRotations = new Quaternion[2];
-	private Quaternion[] previousCubeRotations = new Quaternion[2];
+	private Quaternion[] cubeRotations = new Quaternion[3];
+	private Quaternion[] previousCubeRotations = new Quaternion[3];
 	private Vector3 camPos;
 	private List<Vector3> cubePositions;
 
@@ -48,7 +48,8 @@ class HelloTexturedCubeExample : Example
 
 		cubePositions = new List<Vector3>() {
 			new Vector3(0, 0, 0),
-			new Vector3(0, 0, 3) // currently unused
+			new Vector3(4, 0, 0), // unused
+			new Vector3(0, 2, 8) // unused
 		};
 
 		Logger.LogInfo("Press Left and Right to cycle between sampler states");
@@ -114,38 +115,57 @@ class HelloTexturedCubeExample : Example
 
 		const float TextureInvScale = 1f;
 
+		ReadOnlySpan<Vector2> textureMapping = [
+ 			new Vector2(0, 0),
+			new Vector2(TextureInvScale, 0),
+			new Vector2(TextureInvScale, TextureInvScale),
+			new Vector2(0, TextureInvScale)
+		];
+
+		Matrix4x4 textureMapInv = new Matrix4x4(
+			0, 0, 0, 0,
+			TextureInvScale, 0, 0, 0,
+			TextureInvScale, TextureInvScale, 0, 0,
+			0, TextureInvScale, 0, 0
+		);
+		textureMapInv = Matrix4x4.Transpose(textureMapInv);
+
+
 		ReadOnlySpan<PositionTextureVertex> vertexData = [
 
-			// 
-			new PositionTextureVertex(new Vector3(-1, -1, -1), new Vector2(0, 0)),
-			new PositionTextureVertex(new Vector3(1, -1, -1), new Vector2(TextureInvScale, 0)),
-			new PositionTextureVertex(new Vector3(1, 1, -1), new Vector2(TextureInvScale, TextureInvScale)),
-			new PositionTextureVertex(new Vector3(-1, 1, -1), new Vector2(0, TextureInvScale)),
+			// One of the 4 sides
+			new PositionTextureVertex(new Vector3(-1, -1, -1), textureMapping[3]),
+			new PositionTextureVertex(new Vector3(1, -1, -1), textureMapping[2]),
+			new PositionTextureVertex(new Vector3(1, 1, -1), textureMapping[1]),
+			new PositionTextureVertex(new Vector3(-1, 1, -1), textureMapping[0]),
 
-			new PositionTextureVertex(new Vector3(-1, -1, 1), new Vector2(0, 0)),
-			new PositionTextureVertex(new Vector3(1, -1, 1), new Vector2(TextureInvScale, 0)),
-			new PositionTextureVertex(new Vector3(1, 1, 1), new Vector2(TextureInvScale, TextureInvScale)),
-			new PositionTextureVertex(new Vector3(-1, 1, 1), new Vector2(0, TextureInvScale)),
+			// Another of the 4 sides (flip side of the last one)
+			new PositionTextureVertex(new Vector3(-1, -1, 1), textureMapping[3]),
+			new PositionTextureVertex(new Vector3(1, -1, 1), textureMapping[2]),
+			new PositionTextureVertex(new Vector3(1, 1, 1), textureMapping[1]),
+			new PositionTextureVertex(new Vector3(-1, 1, 1), textureMapping[0]),
 
-			new PositionTextureVertex(new Vector3(-1, -1, -1), new Vector2(0, 0)),
-			new PositionTextureVertex(new Vector3(-1, 1, -1), new Vector2(TextureInvScale, 0)),
-			new PositionTextureVertex(new Vector3(-1, 1, 1), new Vector2(TextureInvScale, TextureInvScale)),
-			new PositionTextureVertex(new Vector3(-1, -1, 1), new Vector2(0, TextureInvScale)),
+			new PositionTextureVertex(new Vector3(-1, -1, -1), textureMapping[3]),
+			new PositionTextureVertex(new Vector3(-1, 1, -1), textureMapping[2]),
+			new PositionTextureVertex(new Vector3(-1, 1, 1), textureMapping[1]),
+			new PositionTextureVertex(new Vector3(-1, -1, 1), textureMapping[0]),
 
-			new PositionTextureVertex(new Vector3(1, -1, -1), new Vector2(0, 0)),
-			new PositionTextureVertex(new Vector3(1, 1, -1), new Vector2(TextureInvScale, 0)),
-			new PositionTextureVertex(new Vector3(1, 1, 1), new Vector2(TextureInvScale, TextureInvScale)),
-			new PositionTextureVertex(new Vector3(1, -1, 1), new Vector2(0, TextureInvScale)),
+			new PositionTextureVertex(new Vector3(1, -1, -1), textureMapping[3]),
+			new PositionTextureVertex(new Vector3(1, 1, -1), textureMapping[2]),
+			new PositionTextureVertex(new Vector3(1, 1, 1), textureMapping[1]),
+			new PositionTextureVertex(new Vector3(1, -1, 1), textureMapping[0]),
 
-			new PositionTextureVertex(new Vector3(-1, -1, -1), new Vector2(0, 0)),
-			new PositionTextureVertex(new Vector3(-1, -1, 1), new Vector2(TextureInvScale, 0)),
-			new PositionTextureVertex(new Vector3(1, -1, 1), new Vector2(TextureInvScale, TextureInvScale)),
-			new PositionTextureVertex(new Vector3(1, -1, -1), new Vector2(0, TextureInvScale)),
+			// Bottom?
+			new PositionTextureVertex(new Vector3(-1, -1, -1), textureMapping[0]),
+			new PositionTextureVertex(new Vector3(-1, -1, 1), textureMapping[1]),
+			new PositionTextureVertex(new Vector3(1, -1, 1), textureMapping[2]),
+			new PositionTextureVertex(new Vector3(1, -1, -1), textureMapping[3]),
 
-			new PositionTextureVertex(new Vector3(-1, 1, -1), new Vector2(0, 0)),
-			new PositionTextureVertex(new Vector3(-1, 1, 1), new Vector2(TextureInvScale, 0)),
-			new PositionTextureVertex(new Vector3(1, 1, 1), new Vector2(TextureInvScale, TextureInvScale)),
-			new PositionTextureVertex(new Vector3(1, 1, -1), new Vector2(0, TextureInvScale))
+			// Top?
+			new PositionTextureVertex(new Vector3(-1, 1, -1), textureMapping[0]),
+			new PositionTextureVertex(new Vector3(-1, 1, 1), textureMapping[1]),
+			new PositionTextureVertex(new Vector3(1, 1, 1), textureMapping[2]),
+			new PositionTextureVertex(new Vector3(1, 1, -1), textureMapping[3])
 		];
 
 		ReadOnlySpan<ushort> indexData = [
@@ -169,6 +189,8 @@ class HelloTexturedCubeExample : Example
 		textures[1] = resourceUploader.CreateTexture2DFromCompressed(RootTitleStorage, TestUtils.GetTexturePath("container.png"),
 			TextureFormat.R8G8B8A8Unorm, TextureUsageFlags.Sampler);
 		textures[2] = resourceUploader.CreateTexture2DFromCompressed(RootTitleStorage, TestUtils.GetTexturePath("hein.png"),
+			TextureFormat.R8G8B8A8Unorm, TextureUsageFlags.Sampler);
+		textures[3] = resourceUploader.CreateTexture2DFromCompressed(RootTitleStorage, TestUtils.GetTexturePath("sir_sebsalot.png"),
 			TextureFormat.R8G8B8A8Unorm, TextureUsageFlags.Sampler);
 
 		DepthRT = Texture.Create2D(
@@ -212,13 +234,15 @@ class HelloTexturedCubeExample : Example
 
 		cubeTimer += (float)delta.TotalSeconds;
 
-		// Rotate the first cube
+		// Rotate the cubes
 		previousCubeRotations[0] = cubeRotations[0];
 		cubeRotations[0] = Quaternion.CreateFromYawPitchRoll(cubeTimer * 2f, 0, cubeTimer * 2f);
-		
-		// Rotate the 2nd cube
+
 		previousCubeRotations[1] = cubeRotations[1];
 		cubeRotations[1] = Quaternion.CreateFromYawPitchRoll(cubeTimer, 0, 0);
+		
+		previousCubeRotations[2] = cubeRotations[2];
+		cubeRotations[2] = Quaternion.CreateFromYawPitchRoll(0, cubeTimer * 3f, 0);
 	}
 
 	public override void Draw(double alpha)
@@ -288,6 +312,7 @@ class HelloTexturedCubeExample : Example
 					else if (i == 1)
 					{
 						modelToWorld = Matrix4x4.CreateTranslation(cubePositions[0]); // our pivot
+						//modelToWorld *= Matrix4x4.CreateTranslation(cubePos); // our offset from the pivot (unused to simplify things by only using "distance" var)
 						var scale = Matrix4x4.CreateScale(0.5f);
 						var rotate = Matrix4x4.CreateFromQuaternion(
 							Quaternion.Slerp(
@@ -299,7 +324,7 @@ class HelloTexturedCubeExample : Example
 
 						// Orbit the 2nd cube around the first!
 						var distance = 3f;
-						var angle = cubeTimer % (MathF.PI * 2);
+						var angle = (cubeTimer + 2f) % (MathF.PI * 2);
 						var orbitMovement = Matrix4x4.CreateTranslation(
 							new Vector3(MathF.Sin(angle) * distance,
 								0,
@@ -307,10 +332,41 @@ class HelloTexturedCubeExample : Example
 							)
 						);
 
-						modelToWorld = modelToWorld * scale * rotate * orbitMovement;
+						modelToWorld =  modelToWorld * scale * rotate * orbitMovement;
 
 						samplerBindings = [
 							new TextureSamplerBinding(textures[2], samplers[currentSamplerIndex]),
+							new TextureSamplerBinding(textures[1], samplers[currentSamplerIndex])
+						];
+						renderPass.BindFragmentSamplers(samplerBindings);
+					}
+					else if (i == 2)
+					{
+						modelToWorld = Matrix4x4.CreateTranslation(cubePositions[0]); // our pivot
+						var scale = Matrix4x4.CreateScale(0.25f);
+						var rotate = Matrix4x4.CreateFromQuaternion(
+							Quaternion.Slerp(
+								previousCubeRotations[i],
+								cubeRotations[i],
+								(float)alpha
+							)
+						);
+
+						// Orbit the 3rd cube around the first!
+						var distance = 3f;
+						var angle = cubeTimer % (MathF.PI * 2);
+						var orbitMovement = Matrix4x4.CreateTranslation(
+							new Vector3(
+								0,
+								MathF.Sin(angle) * distance,
+								MathF.Cos(angle) * distance
+							)
+						);
+
+						modelToWorld = modelToWorld * scale * rotate * orbitMovement;
+
+						samplerBindings = [
+							new TextureSamplerBinding(textures[3], samplers[currentSamplerIndex]),
 							new TextureSamplerBinding(textures[1], samplers[currentSamplerIndex])
 						];
 						renderPass.BindFragmentSamplers(samplerBindings);
